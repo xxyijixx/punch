@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"yiji.one/punch/client/internal/peer"
 	"yiji.one/punch/iface"
 )
 
@@ -74,7 +75,6 @@ func (c *ConnectClient) run() error {
 	}
 
 	pubKey := myPrivateKey.PublicKey().String()
-	_ = pubKey
 
 	operation := func() error {
 		// if context cancelled we not start new backoff cycle
@@ -94,7 +94,8 @@ func (c *ConnectClient) run() error {
 		if err != nil {
 			return err
 		}
-		clientInfo, err := ExchangePeer(engineConfig.WgPort, pubKey)
+		// 注册客户端
+		clientInfo, err := ClientRegister(engineConfig.WgPort, pubKey)
 		if err != nil {
 			return err
 		}
@@ -108,24 +109,7 @@ func (c *ConnectClient) run() error {
 			log.Errorf("error while starting Netbird Connection Engine: %s", err)
 			return err
 		}
-
-		if err != nil {
-			log.Errorf("error while open peerConn : %s", err)
-			return err
-		}
-		// peerConn, err := c.engine.createPeerConn("7u894M10HG7B2lCr0O/CWo1Y9aB9bq3K0+S1dHBVdnc=", "10.0.10.0/24")
-		peers := []RemotePeerConfig{{
-			WgPubKey:   clientInfo.PubKey,
-			AllowedIps: []string{"172.16.0.0/24"},
-		}}
-		for _, peer := range peers {
-			peerConn, err := c.engine.createPeerConn(peer.WgPubKey, strings.Join(peer.AllowedIps, ","))
-			if err != nil {
-				log.Errorf("error while open peerConn : %s", err)
-				return err
-			}
-			peerConn.Open(c.ctx, clientInfo.IP, clientInfo.Port)
-		}
+		c.engine.addNewPeers(clientInfo)
 
 		<-engineCtx.Done()
 		backOff.Reset()
@@ -167,6 +151,28 @@ func createEngineConfig(key wgtypes.Key, config *Config) (*EngineConfig, error) 
 	log.Infof("using %d as wireguard port", port)
 	engineConfig.WgPort = port
 	return engineConfig, nil
+}
+
+func (e *Engine) addNewPeers(clientInfo []ClientInfo) error {
+	for _, client := range clientInfo {
+		peerConfig := RemotePeerConfig{
+			WgPubKey:   client.PubKey,
+			AllowedIps: []string{"172.16.0.0/24"},
+		}
+		// remotePeers = append(remotePeers, peerConfig)
+
+		peerConn, err := e.createPeerConn(peerConfig.WgPubKey, strings.Join(peerConfig.AllowedIps, ","))
+		peerConn.OnRemoteAnswer(peer.OfferAnswer{
+			WgListenPort: client.Port,
+			WgAddr:       client.IP,
+		})
+		if err != nil {
+			log.Errorf("error while open peerConn : %s", err)
+			return err
+		}
+		peerConn.Open(e.ctx)
+	}
+	return nil
 }
 
 func freePort(start int) (int, error) {

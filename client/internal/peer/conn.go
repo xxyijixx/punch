@@ -2,9 +2,9 @@ package peer
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net"
+	"runtime"
 	"sync"
 	"time"
 
@@ -27,21 +27,6 @@ const (
 
 	defaultWgKeepAlive = 2 * time.Second //25 * time.Second
 )
-
-var (
-	defaultRemoteWGPort = 51822
-	defaultRemoteAddr   = "47.91.20.205"
-)
-
-var (
-	currentRemoteWgPort int
-	currentRemoteAddr   string
-)
-
-func init() {
-	flag.IntVar(&currentRemoteWgPort, "p", defaultRemoteWGPort, "Remote WireGuard port")
-	flag.StringVar(&currentRemoteAddr, "addr", defaultRemoteAddr, "Remote WireGuard address")
-}
 
 type WgConfig struct {
 	WgListenPort int
@@ -84,22 +69,10 @@ type ConnConfig struct {
 	RosenpassAddr string
 }
 
-// OfferAnswer represents a session establishment offer or answer
 type OfferAnswer struct {
-	IceCredentials IceCredentials
-	// WgListenPort is a remote WireGuard listen port.
-	// This field is used when establishing a direct WireGuard connection without any proxy.
-	// We can set the remote peer's endpoint with this port.
 	WgListenPort int
 
-	// Version of NetBird Agent
-	Version string
-	// RosenpassPubKey is the Rosenpass public key of the remote peer when receiving this message
-	// This value is the local Rosenpass server public key when sending the message
-	RosenpassPubKey []byte
-	// RosenpassAddr is the Rosenpass server address (IP:port) of the remote peer when receiving this message
-	// This value is the local Rosenpass server address when sending the message
-	RosenpassAddr string
+	WgAddr string
 }
 
 // IceCredentials ICE protocol credentials struct
@@ -121,6 +94,8 @@ type Conn struct {
 	wgProxyFactory *wgproxy.Factory
 	wgProxy        wgproxy.Proxy
 
+	remoteAnswer OfferAnswer
+
 	adapter       iface.TunAdapter
 	iFaceDiscover stdnet.ExternalIFaceDiscover
 }
@@ -141,53 +116,10 @@ func NewConn(config ConnConfig, wgProxyFactory *wgproxy.Factory) (*Conn, error) 
 	}, nil
 }
 
-func (conn *Conn) reCreateAgent() error {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-
-	failedTimeout := 6 * time.Second
-
-	var err error
-	transportNet, err := conn.newStdNet()
-	if err != nil {
-		log.Errorf("failed to create pion's stdnet: %s", err)
-	}
-
-	iceKeepAlive := iceKeepAlive()
-	iceDisconnectedTimeout := iceDisconnectedTimeout()
-	iceRelayAcceptanceMinWait := iceRelayAcceptanceMinWait()
-
-	agentConfig := &ice.AgentConfig{
-		MulticastDNSMode:       ice.MulticastDNSModeDisabled,
-		NetworkTypes:           []ice.NetworkType{ice.NetworkTypeUDP4, ice.NetworkTypeUDP6},
-		Urls:                   conn.config.StunTurn,
-		FailedTimeout:          &failedTimeout,
-		InterfaceFilter:        stdnet.InterfaceFilter(conn.config.InterfaceBlackList),
-		UDPMux:                 conn.config.UDPMux,
-		UDPMuxSrflx:            conn.config.UDPMuxSrflx,
-		NAT1To1IPs:             conn.config.NATExternalIPs,
-		Net:                    transportNet,
-		DisconnectedTimeout:    &iceDisconnectedTimeout,
-		KeepaliveInterval:      &iceKeepAlive,
-		RelayAcceptanceMinWait: &iceRelayAcceptanceMinWait,
-	}
-
-	if conn.config.DisableIPv6Discovery {
-		agentConfig.NetworkTypes = []ice.NetworkType{ice.NetworkTypeUDP4}
-	}
-
-	conn.agent, err = ice.NewAgent(agentConfig)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Open opens connection to the remote peer starting ICE candidate gathering process.
 // Blocks until connection has been closed or connection timeout.
 // ConnStatus will be set accordingly
-func (conn *Conn) Open(ctx context.Context, remoteAddr string, remoteWgPort int) error {
+func (conn *Conn) Open(ctx context.Context) error {
 	log.Debugf("trying to connect to peer %s", conn.config.Key)
 	var err error
 
@@ -202,10 +134,11 @@ func (conn *Conn) Open(ctx context.Context, remoteAddr string, remoteWgPort int)
 
 	log.Infof("connection offer sent to peer %s, waiting for the confirmation", conn.config.Key)
 	// dynamically set remote WireGuard port if other side specified a different one from the default one
-	// remoteWgPort := currentRemoteWgPort
-	// remoteAddr := currentRemoteAddr
+
 	// the ice connection has been established successfully so we are ready to start the proxy
-	endpoint, err := conn.configureConnection(remoteAddr, remoteWgPort)
+	remoteWgPort := conn.remoteAnswer.WgListenPort
+	remoteWgAddr := conn.remoteAnswer.WgAddr
+	endpoint, err := conn.configureConnection(remoteWgAddr, remoteWgPort)
 	if err != nil {
 		log.Info("configre error", err)
 		return err
@@ -233,7 +166,6 @@ func (conn *Conn) configureConnection(remoteAddr string, remoteWgPort int) (net.
 	defer conn.mu.Unlock()
 
 	conn.wgProxy = conn.wgProxyFactory.GetProxy(conn.ctx)
-	log.Infof("ConfigureConnection %s, %d, %v", remoteAddr, remoteWgPort, conn.wgProxy)
 	go conn.punchRemoteWGPort(remoteAddr, remoteWgPort)
 	var endpoint = &net.UDPAddr{
 		IP:   net.ParseIP(remoteAddr),
@@ -247,22 +179,18 @@ func (conn *Conn) configureConnection(remoteAddr string, remoteWgPort int) (net.
 	if err != nil {
 		log.Info("Error conn")
 	}
-	// if err != nil {
-	// 	if conn.wgProxy != nil {
-	// 		if err := conn.wgProxy.CloseConn(); err != nil {
-	// 			log.Warnf("Failed to close turn connection: %v", err)
-	// 		}
-	// 	}
-	// 	return nil, fmt.Errorf("update peer: %w", err)
-	// }
+	if err != nil {
+		if conn.wgProxy != nil {
+			if err := conn.wgProxy.CloseConn(); err != nil {
+				log.Warnf("Failed to close turn connection: %v", err)
+			}
+		}
+		return nil, fmt.Errorf("update peer: %w", err)
+	}
 
-	// if err != nil {
-	// 	log.Warnf("unable to save peer's state, got error: %v", err)
-	// }
-
-	// if runtime.GOOS == "ios" {
-	// 	runtime.GC()
-	// }
+	if runtime.GOOS == "ios" {
+		runtime.GC()
+	}
 
 	return endpoint, nil
 }
@@ -287,7 +215,6 @@ func (conn *Conn) punchRemoteWGPort(remoteAddr string, remoteWgPort int) {
 	if err != nil {
 		log.Warnf("got an error while sending the punch packet, err: %s", err)
 	}
-	// mux.ReadFromConn(conn.ctx)
 }
 
 // cleanup closes all open resources and sets status to StatusDisconnected
@@ -336,4 +263,8 @@ func (conn *Conn) Close() error {
 		log.Warnf("Connection has been already closed or attempted closing not started connection %s", conn.config.Key)
 		return NewConnectionAlreadyClosed(conn.config.Key)
 	}
+}
+
+func (conn *Conn) OnRemoteAnswer(answer OfferAnswer) {
+	conn.remoteAnswer = answer
 }

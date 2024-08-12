@@ -71,6 +71,8 @@ type Engine struct {
 
 	udpMux *bind.UniversalUDPMuxDefault
 
+	peerConns map[string]*peer.Conn
+
 	firewall manager.Manager
 
 	wgConnWorker sync.WaitGroup
@@ -91,6 +93,7 @@ func NewEngine(
 	return &Engine{
 		config:       config,
 		clientCtx:    clientCtx,
+		peerConns:    make(map[string]*peer.Conn),
 		clientCancel: clientCancel,
 	}
 }
@@ -241,27 +244,10 @@ func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, e
 	if err != nil {
 		return nil, err
 	}
-
-	// wgPubKey, err := wgtypes.ParseKey(pubKey)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	return peerConn, nil
 }
 
 type RemotePeerConfig struct {
 	WgPubKey   string
 	AllowedIps []string
-}
-
-func GetRemotePeers() []*RemotePeerConfig {
-	var remotePeers []*RemotePeerConfig = make([]*RemotePeerConfig, 0)
-
-	remotePeers = append(remotePeers, &RemotePeerConfig{
-		WgPubKey:   "7u894M10HG7B2lCr0O/CWo1Y9aB9bq3K0+S1dHBVdnc=",
-		AllowedIps: []string{"172.16.0.0/24"},
-	})
-
-	return remotePeers
 }

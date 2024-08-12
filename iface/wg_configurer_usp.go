@@ -76,9 +76,7 @@ func (c *wgUSPConfigurer) updatePeer(peerKey string, allowedIps string, keepAliv
 	config := wgtypes.Config{
 		Peers: []wgtypes.PeerConfig{peer},
 	}
-	uapiConf := toWgUserspaceString(config)
-	log.Infof("Uapi config: %s", uapiConf)
-	return c.device.IpcSet(uapiConf)
+	return c.device.IpcSet(toWgUserspaceString(config))
 }
 
 func (c *wgUSPConfigurer) removePeer(peerKey string) error {
@@ -188,7 +186,6 @@ func (c *wgUSPConfigurer) removeAllowedIP(peerKey string, ip string) error {
 // startUAPI starts the UAPI listener for managing the WireGuard interface via external tool
 func (t *wgUSPConfigurer) startUAPI() {
 	var err error
-	log.Info("Start uapi listener")
 	t.uapiListener, err = openUAPI(t.deviceName)
 	if err != nil {
 		log.Errorf("failed to open uapi listener: %v", err)
@@ -203,7 +200,6 @@ func (t *wgUSPConfigurer) startUAPI() {
 				return
 			}
 			go func() {
-				log.Info("ipc handle")
 				t.device.IpcHandle(uapiConn)
 			}()
 		}

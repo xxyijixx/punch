@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net"
 	"sync"
@@ -12,6 +13,7 @@ type ClientReq struct {
 	ClientID string
 	TargetID string
 	Key      string
+	Type     int
 }
 
 type ClientInfo struct {
@@ -21,12 +23,57 @@ type ClientInfo struct {
 	PubKey   string `json:"pubKey"`
 }
 
-var clientsMap sync.Map
+type RegisterClients struct {
+	mu      sync.RWMutex
+	clients []ClientInfo
+}
+
+var registerClients = RegisterClients{
+	mu:      sync.RWMutex{},
+	clients: []ClientInfo{},
+}
+
+var (
+	localPort int
+)
+
+func init() {
+	flag.IntVar(&localPort, "port", 51833, "local port to listen on")
+	flag.Parse()
+}
+
+func (r *RegisterClients) Register(clientInfo ClientInfo) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// 检查是否已经存在相同的客户端信息
+	for idx, client := range r.clients {
+		if client.ClientID == clientInfo.ClientID {
+			r.clients[idx] = clientInfo
+			return
+		}
+	}
+	r.clients = append(r.clients, clientInfo)
+}
+
+func (r *RegisterClients) GetClients(clientId string) []ClientInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	clients := []ClientInfo{}
+
+	for _, client := range r.clients {
+		if client.ClientID != clientId {
+			clients = append(clients, client)
+		}
+	}
+	return clients
+}
 
 func main() {
 	// 创建一个UDP监听器
 	addr := net.UDPAddr{
-		Port: 51833,
+		Port: localPort,
 		IP:   net.ParseIP("0.0.0.0"),
 	}
 	conn, err := net.ListenUDP("udp", &addr)
@@ -36,7 +83,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	fmt.Println("Listening on :51833")
+	fmt.Println("Listening on :", localPort)
 
 	// 接受连接
 	buffer := make([]byte, 1024)
@@ -69,29 +116,27 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 		PubKey:   clientReq.Key,
 	}
 
-	clientsMap.Store(clientInfo.ClientID, clientInfo)
+	fmt.Printf("Received: %#v type: %d\n", clientInfo, clientReq.Type)
+	if clientReq.Type == 1 {
+		// 注册客户端
+		registerClients.Register(clientInfo)
+		return
+	}
 
 	// 打印消息
-	fmt.Println("Received:", clientInfo)
 
-	// 轮询等待目标客户端注册
 	for {
-		if targetInfo, ok := clientsMap.Load(clientReq.TargetID); ok {
-			targetClientInfo := targetInfo.(ClientInfo)
+		clients := registerClients.GetClients(clientInfo.ClientID)
+		if len(clients) > 0 {
+			responseData, _ := json.Marshal(clients)
 
-			// 交换信息并返回给当前客户端
-			responseData, _ := json.Marshal(targetClientInfo)
-
-			// 发送JSON数据
 			_, err = conn.WriteToUDP(responseData, remoteAddr)
 			if err != nil {
 				fmt.Println("Error sending data:", err.Error())
-				return
 			}
-			return
 		}
-
 		// 如果目标客户端还没有注册，等待一段时间再检查
 		time.Sleep(500 * time.Millisecond)
 	}
+
 }
