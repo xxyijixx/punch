@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"sync"
 	"time"
 
 	"github.com/pion/stun/v2"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/rand"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"yiji.one/punch/client/internal/ebpf/manager"
 	"yiji.one/punch/client/internal/peer"
 	"yiji.one/punch/client/internal/wgproxy"
 	"yiji.one/punch/iface"
@@ -72,10 +70,6 @@ type Engine struct {
 	udpMux *bind.UniversalUDPMuxDefault
 
 	peerConns map[string]*peer.Conn
-
-	firewall manager.Manager
-
-	wgConnWorker sync.WaitGroup
 }
 
 // Peer is an instance of the Connection Peer
@@ -162,27 +156,6 @@ func (e *Engine) wgInterfaceCreate() (err error) {
 	err = e.wgInterface.Create()
 
 	return err
-}
-
-func findIPFromInterfaceName(ifaceName string) (net.IP, error) {
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		return nil, err
-	}
-	return findIPFromInterface(iface)
-}
-
-func findIPFromInterface(iface *net.Interface) (net.IP, error) {
-	ifaceAddrs, err := iface.Addrs()
-	if err != nil {
-		return nil, err
-	}
-	for _, addr := range ifaceAddrs {
-		if ipv4Addr := addr.(*net.IPNet).IP.To4(); ipv4Addr != nil {
-			return ipv4Addr, nil
-		}
-	}
-	return nil, fmt.Errorf("interface %s don't have an ipv4 address", iface.Name)
 }
 
 func (e *Engine) addrViaRoutes(addr netip.Addr) (bool, netip.Prefix, error) {

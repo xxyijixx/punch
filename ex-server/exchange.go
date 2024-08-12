@@ -120,7 +120,7 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 	if clientReq.Type == 1 {
 		// 注册客户端
 		registerClients.Register(clientInfo)
-		return
+		// return
 	}
 
 	// 打印消息
