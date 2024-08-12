@@ -23,7 +23,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&localWgAddr, "i", "10.0.10.6/24", "Local WireGuard address")
+	flag.StringVar(&localWgAddr, "local-network", "172.16.0.1/24", "Local WireGuard address")
 }
 
 type ConnectClient struct {
