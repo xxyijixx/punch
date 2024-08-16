@@ -14,6 +14,7 @@ type ClientReq struct {
 	TargetID string
 	Key      string
 	Type     int
+	Token    string
 }
 
 type ClientInfo struct {
@@ -21,6 +22,7 @@ type ClientInfo struct {
 	IP       string `json:"ip"`
 	Port     int    `json:"port"`
 	PubKey   string `json:"pubKey"`
+	Token    string `json:"token"`
 }
 
 type RegisterClients struct {
@@ -45,10 +47,14 @@ func init() {
 func (r *RegisterClients) Register(clientInfo ClientInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
+	clientList := r.GetClients(clientInfo.ClientID, clientInfo.Token)
+	if len(clientList) > 1 {
+		fmt.Println("client already registered")
+		return
+	}
 	// 检查是否已经存在相同的客户端信息
 	for idx, client := range r.clients {
-		if client.ClientID == clientInfo.ClientID {
+		if client.ClientID == clientInfo.ClientID && client.Token == clientInfo.Token {
 			r.clients[idx] = clientInfo
 			return
 		}
@@ -56,14 +62,14 @@ func (r *RegisterClients) Register(clientInfo ClientInfo) {
 	r.clients = append(r.clients, clientInfo)
 }
 
-func (r *RegisterClients) GetClients(clientId string) []ClientInfo {
+func (r *RegisterClients) GetClients(clientId, token string) []ClientInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	clients := []ClientInfo{}
 
 	for _, client := range r.clients {
-		if client.ClientID != clientId {
+		if client.ClientID != clientId && client.Token == token {
 			clients = append(clients, client)
 		}
 	}
@@ -114,6 +120,7 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 		Port:     port,
 		ClientID: clientReq.ClientID,
 		PubKey:   clientReq.Key,
+		Token:    clientReq.Token,
 	}
 
 	fmt.Printf("Received: %#v type: %d\n", clientInfo, clientReq.Type)
@@ -126,7 +133,7 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 	// 打印消息
 
 	for {
-		clients := registerClients.GetClients(clientInfo.ClientID)
+		clients := registerClients.GetClients(clientInfo.ClientID, clientReq.Token)
 		if len(clients) > 0 {
 			responseData, _ := json.Marshal(clients)
 
