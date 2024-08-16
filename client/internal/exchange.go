@@ -13,6 +13,7 @@ type ClientInfo struct {
 	IP       string `json:"ip"`
 	Port     int    `json:"port"`
 	PubKey   string `json:"pubKey"`
+	Token    string `json:"token"`
 }
 
 type ClientReq struct {
@@ -20,6 +21,7 @@ type ClientReq struct {
 	TargetID string `json:"targetId"`
 	Key      string `json:"key"`
 	Type     int    `json:"type"`
+	Token    string `json:"token"`
 }
 
 const (
@@ -31,12 +33,14 @@ var (
 	targetId string
 	exIp     string
 	exPort   int
+	token    string
 )
 
 func init() {
 	flag.StringVar(&clientId, "client", "A", "client id")
 	flag.StringVar(&exIp, "ex-ip", "47.91.20.205", "exchange server ip")
 	flag.IntVar(&exPort, "ex-port", 51833, "exchange server port")
+	flag.StringVar(&token, "token", "123456", "token")
 }
 
 func ClientRegister(port int, key string) ([]ClientInfo, error) {
@@ -61,6 +65,7 @@ func ClientRegister(port int, key string) ([]ClientInfo, error) {
 		TargetID: targetId,
 		Key:      key,
 		Type:     1,
+		Token:    token,
 	}
 
 	// 将消息序列化为JSON
