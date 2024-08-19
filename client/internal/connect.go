@@ -171,6 +171,7 @@ func (e *Engine) addNewPeers(clientInfo []ClientInfo) error {
 			return err
 		}
 		peerConn.Open(e.ctx)
+		e.peerConns[peerConfig.WgPubKey] = peerConn
 	}
 	return nil
 }

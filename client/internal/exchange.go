@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -29,30 +30,43 @@ const (
 )
 
 var (
-	clientId string
-	targetId string
-	exIp     string
-	exPort   int
-	token    string
+	clientId        string
+	targetId        string
+	signalIpAddress string
+	token           string
 )
 
 func init() {
-	flag.StringVar(&clientId, "client", "A", "client id")
-	flag.StringVar(&exIp, "ex-ip", "47.91.20.205", "exchange server ip")
-	flag.IntVar(&exPort, "ex-port", 51833, "exchange server port")
-	flag.StringVar(&token, "token", "123456", "token")
+	flag.StringVar(&clientId, "client", "A", "client identity")
+	flag.StringVar(&signalIpAddress, "signal", "47.91.20.205:51833", "signal server ip:port")
+	flag.StringVar(&token, "token", "123456", "user token")
+}
+
+// GetSignalServer 获取信令端ip和端口
+func GetSignalServer() (string, int) {
+	signalHost, signalPort, err := net.SplitHostPort(signalIpAddress)
+	if err != nil {
+		panic(err)
+	}
+	sPort, err := strconv.Atoi(signalPort)
+	if err != nil {
+		panic(err)
+	}
+	return signalHost, sPort
 }
 
 func ClientRegister(port int, key string) ([]ClientInfo, error) {
-	// 指定目标IP和端口
+
 	netAddr := &net.UDPAddr{Port: port}
 
 	var response []ClientInfo
 
+	signalHost, signalPort := GetSignalServer()
+
 	// 创建一个UDP连接
 	conn, err := net.DialUDP("udp", netAddr, &net.UDPAddr{
-		IP:   net.ParseIP(exIp),
-		Port: exPort,
+		IP:   net.ParseIP(signalHost),
+		Port: signalPort,
 	})
 	if err != nil {
 		return response, fmt.Errorf("error connecting: %v", err)
@@ -105,10 +119,12 @@ func GetRemotePeers(clientId string) ([]ClientInfo, error) {
 
 	var response []ClientInfo
 
+	signalHost, signalPort := GetSignalServer()
+
 	// 创建一个UDP连接
 	conn, err := net.DialUDP("udp", netAddr, &net.UDPAddr{
-		IP:   net.ParseIP(exIp),
-		Port: exPort,
+		IP:   net.ParseIP(signalHost),
+		Port: signalPort,
 	})
 	if err != nil {
 		return response, fmt.Errorf("error connecting: %v", err)

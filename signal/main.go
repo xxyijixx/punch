@@ -47,8 +47,13 @@ func init() {
 func (r *RegisterClients) Register(clientInfo ClientInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	clientList := r.GetClients(clientInfo.ClientID, clientInfo.Token)
-	if len(clientList) > 1 {
+	registeredClients := []ClientInfo{}
+	for _, client := range r.clients {
+		if client.ClientID != clientInfo.ClientID && client.Token == clientInfo.Token {
+			registeredClients = append(registeredClients, client)
+		}
+	}
+	if len(registeredClients) > 1 {
 		fmt.Println("client already registered")
 		return
 	}
@@ -59,6 +64,7 @@ func (r *RegisterClients) Register(clientInfo ClientInfo) {
 			return
 		}
 	}
+	fmt.Println("register client", clientInfo.ClientID)
 	r.clients = append(r.clients, clientInfo)
 }
 
