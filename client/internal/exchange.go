@@ -25,6 +25,11 @@ type ClientReq struct {
 	Token    string `json:"token"`
 }
 
+type PeerLoginRes struct {
+	Ip   string
+	Port int
+}
+
 const (
 	DEFAULT_PORT = 51833
 )
@@ -55,11 +60,12 @@ func GetSignalServer() (string, int) {
 	return signalHost, sPort
 }
 
-func ClientRegister(port int, key string) ([]ClientInfo, error) {
+func ClientRegister(port int, key string) (PeerLoginRes, error) {
 
 	netAddr := &net.UDPAddr{Port: port}
-
-	var response []ClientInfo
+	// 使用随机端口
+	// netAddr := &net.UDPAddr{}
+	var response PeerLoginRes
 
 	signalHost, signalPort := GetSignalServer()
 
@@ -113,7 +119,7 @@ func ClientRegister(port int, key string) ([]ClientInfo, error) {
 	return response, nil
 }
 
-func GetRemotePeers(clientId string) ([]ClientInfo, error) {
+func GetRemotePeers(clientId, token string) ([]ClientInfo, error) {
 	// 指定目标IP和端口
 	netAddr := &net.UDPAddr{}
 
@@ -137,6 +143,7 @@ func GetRemotePeers(clientId string) ([]ClientInfo, error) {
 		TargetID: targetId,
 		Key:      "",
 		Type:     0,
+		Token:    token,
 	}
 
 	// 将消息序列化为JSON

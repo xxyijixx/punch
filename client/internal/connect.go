@@ -95,10 +95,11 @@ func (c *ConnectClient) run() error {
 			return err
 		}
 		// 注册客户端
-		clientInfo, err := ClientRegister(engineConfig.WgPort, pubKey)
+		loginResponse, err := ClientRegister(engineConfig.WgPort, pubKey)
 		if err != nil {
 			return err
 		}
+		log.Info("登录", loginResponse)
 		c.engineMutex.Lock()
 		c.engine = NewEngine(engineCtx, cancel, engineConfig)
 		c.engineMutex.Unlock()
@@ -109,8 +110,6 @@ func (c *ConnectClient) run() error {
 			log.Errorf("error while starting Netbird Connection Engine: %s", err)
 			return err
 		}
-		c.engine.addNewPeers(clientInfo)
-
 		<-engineCtx.Done()
 		backOff.Reset()
 

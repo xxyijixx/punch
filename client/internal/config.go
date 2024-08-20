@@ -183,8 +183,6 @@ func update(input ConfigInput) (*Config, error) {
 
 func (config *Config) apply(input ConfigInput) (updated bool, err error) {
 	// TODO 私钥
-	// macos安装wireguard tools
-
 	config.PrivateKey = ""
 	// WACXtBaxOtoObaoxScBst2OA/OjDS4XERXv4SlXqxUQ=
 	if config.PrivateKey == "" {
