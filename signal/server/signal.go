@@ -18,8 +18,8 @@ type RegisterReq struct {
 }
 
 type RegisterResponse struct {
-	Ip   string
-	Port int
+	IP   string `json:"ip"`
+	Port int    `json:"port"`
 }
 
 var (
@@ -82,7 +82,7 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 		// 注册客户端
 		store.Register(peerLogin)
 		responseData, _ = json.Marshal(&RegisterResponse{
-			Ip:   ip,
+			IP:   ip,
 			Port: port,
 		})
 	} else if clientReq.Type == 0 {
@@ -90,7 +90,6 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 		peerLogin := store.GetClients(clientReq.ClientID, clientReq.Token)
 		responseData, _ = json.Marshal(&peerLogin)
 	}
-
 	_, err = conn.WriteToUDP(responseData, remoteAddr)
 	if err != nil {
 		fmt.Println("Error sending data:", err.Error())

@@ -27,8 +27,8 @@ type PeerLoginReq struct {
 }
 
 type PeerLoginRes struct {
-	Ip   string
-	Port int
+	IP   string `json:"ip"`
+	Port int    `json:"port"`
 }
 
 const (
@@ -85,6 +85,7 @@ func ClientRegister(port int, wgPubKey string) (PeerLoginRes, error) {
 		ClientID: clientId,
 		TargetID: targetId,
 		WgPubKey: wgPubKey,
+		Type:     1,
 		Token:    token,
 	}
 
@@ -103,14 +104,23 @@ func ClientRegister(port int, wgPubKey string) (PeerLoginRes, error) {
 	// 读取响应
 	buffer := make([]byte, 1024)
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second)) // 设置读取超时时间
-	n, _, err := conn.ReadFromUDP(buffer)
-	if err != nil {
-		fmt.Println("Error reading data:", err.Error())
-		return response, err
-	}
+	var result []byte
+	for {
+		n, _, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			return response, fmt.Errorf("Error reading data:", err.Error())
+		}
 
+		result = append(result, buffer[:n]...)
+
+		// 检查是否读取完所有数据
+		if n < len(buffer) {
+			break
+		}
+	}
 	// 将响应反序列化为消息
-	err = json.Unmarshal(buffer[:n], &response)
+	err = json.Unmarshal(result, &response)
+	fmt.Println("DD ", string(result))
 	if err != nil {
 		fmt.Println("Error unmarshaling JSON:", err.Error())
 		return response, err
