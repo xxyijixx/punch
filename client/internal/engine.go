@@ -2,9 +2,12 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/pion/stun/v2"
@@ -69,7 +72,11 @@ type Engine struct {
 
 	udpMux *bind.UniversalUDPMuxDefault
 
+	syncMsgMux *sync.Mutex
+
 	peerConns map[string]*peer.Conn
+
+	wgConnWorker sync.WaitGroup
 }
 
 // Peer is an instance of the Connection Peer
@@ -119,6 +126,7 @@ func (e *Engine) Start() error {
 		e.close()
 		return fmt.Errorf("up wg interface: %w", err)
 	}
+	e.receiveManagementEvents()
 
 	return nil
 }
@@ -185,6 +193,18 @@ func (e *Engine) IsWGIfaceUp() bool {
 	return false
 }
 
+func (e *Engine) receiveManagementEvents() {
+	go func() {
+		peerInfo, err := GetRemotePeers(clientId, token)
+		if err != nil {
+			log.Error("failed to get remote peers: ", err)
+		}
+		time.Sleep(60 * time.Second)
+		e.addNewPeers(peerInfo)
+	}()
+	log.Debugf("connecting to Management Service updates stream")
+}
+
 func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, error) {
 	log.Debugf("creating peer connection %s", pubKey)
 	var stunTurn []*stun.URI
@@ -218,6 +238,72 @@ func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, e
 		return nil, err
 	}
 	return peerConn, nil
+}
+
+func (e *Engine) addNewPeers(clientInfo []PeerInfo) error {
+	for _, client := range clientInfo {
+		peerConfig := RemotePeerConfig{
+			WgPubKey:   client.WgPubKey,
+			AllowedIps: []string{"172.16.0.0/24"},
+		}
+		// remotePeers = append(remotePeers, peerConfig)
+
+		conn, err := e.createPeerConn(peerConfig.WgPubKey, strings.Join(peerConfig.AllowedIps, ","))
+		conn.OnRemoteAnswer(peer.OfferAnswer{
+			WgListenPort: client.Port,
+			WgAddr:       client.IP,
+		})
+		if err != nil {
+			log.Errorf("error while open peerConn : %s", err)
+			return err
+		}
+		e.peerConns[peerConfig.WgPubKey] = conn
+
+		e.wgConnWorker.Add(1)
+		go e.connWorker(conn, client.WgPubKey)
+	}
+	return nil
+}
+
+func (e *Engine) connWorker(conn *peer.Conn, peerKey string) {
+	defer e.wgConnWorker.Done()
+	for {
+
+		// randomize starting time a bit
+		min := 500
+		max := 2000
+		duration := time.Duration(rand.Intn(max-min)+min) * time.Millisecond
+		select {
+		case <-e.ctx.Done():
+			return
+		case <-time.After(duration):
+		}
+
+		// if peer has been removed -> give up
+		if !e.peerExists(peerKey) {
+			log.Debugf("peer %s doesn't exist anymore, won't retry connection", peerKey)
+			return
+		}
+
+		err := conn.Open(e.ctx)
+		if err != nil {
+			log.Debugf("connection to peer %s failed: %v", peerKey, err)
+			var connectionClosedError *peer.ConnectionClosedError
+			switch {
+			case errors.As(err, &connectionClosedError):
+				// conn has been forced to close, so we exit the loop
+				return
+			default:
+			}
+		}
+	}
+}
+
+func (e *Engine) peerExists(peerKey string) bool {
+	e.syncMsgMux.Lock()
+	defer e.syncMsgMux.Unlock()
+	_, ok := e.peerConns[peerKey]
+	return ok
 }
 
 type RemotePeerConfig struct {

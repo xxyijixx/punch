@@ -9,18 +9,19 @@ import (
 	"time"
 )
 
-type ClientInfo struct {
-	ClientId string `json:"clientId"`
-	IP       string `json:"ip"`
-	Port     int    `json:"port"`
-	PubKey   string `json:"pubKey"`
-	Token    string `json:"token"`
+type PeerInfo struct {
+	ClientId        string `json:"clientId"`
+	IP              string `json:"ip"`
+	Port            int    `json:"port"`
+	WgPubKey        string `json:"wgPubKey"`
+	Token           string `json:"token"`
+	LastKeepAliveAt string `json:"lastKeepAliveAt"`
 }
 
-type ClientReq struct {
+type PeerLoginReq struct {
 	ClientID string `json:"clientId"`
 	TargetID string `json:"targetId"`
-	Key      string `json:"key"`
+	WgPubKey string `json:"wgPubKey"`
 	Type     int    `json:"type"`
 	Token    string `json:"token"`
 }
@@ -60,7 +61,7 @@ func GetSignalServer() (string, int) {
 	return signalHost, sPort
 }
 
-func ClientRegister(port int, key string) (PeerLoginRes, error) {
+func ClientRegister(port int, wgPubKey string) (PeerLoginRes, error) {
 
 	netAddr := &net.UDPAddr{Port: port}
 	// 使用随机端口
@@ -80,11 +81,10 @@ func ClientRegister(port int, key string) (PeerLoginRes, error) {
 	defer conn.Close()
 
 	// 创建一个消息
-	clientReq := ClientReq{
+	clientReq := PeerLoginReq{
 		ClientID: clientId,
 		TargetID: targetId,
-		Key:      key,
-		Type:     1,
+		WgPubKey: wgPubKey,
 		Token:    token,
 	}
 
@@ -119,11 +119,11 @@ func ClientRegister(port int, key string) (PeerLoginRes, error) {
 	return response, nil
 }
 
-func GetRemotePeers(clientId, token string) ([]ClientInfo, error) {
+func GetRemotePeers(clientId, token string) ([]PeerInfo, error) {
 	// 指定目标IP和端口
 	netAddr := &net.UDPAddr{}
 
-	var response []ClientInfo
+	var response []PeerInfo
 
 	signalHost, signalPort := GetSignalServer()
 
@@ -138,10 +138,9 @@ func GetRemotePeers(clientId, token string) ([]ClientInfo, error) {
 	defer conn.Close()
 
 	// 创建一个消息
-	clientReq := ClientReq{
+	clientReq := PeerLoginReq{
 		ClientID: clientId,
-		TargetID: targetId,
-		Key:      "",
+		WgPubKey: "",
 		Type:     0,
 		Token:    token,
 	}

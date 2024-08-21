@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"net"
 
+	log "github.com/sirupsen/logrus"
 	"yiji.one/punch/signal/store"
-	ypeer "yiji.one/punch/signal/store/peer"
 )
 
 type RegisterReq struct {
 	ClientID string
-	TargetID string
-	Key      string
+	WgPubKey string
 	Type     int
 	Token    string
 }
@@ -44,8 +43,7 @@ func Run() {
 		return
 	}
 	defer conn.Close()
-	fmt.Println("Listening on :", localPort)
-
+	log.Info("Listening on :", localPort)
 	// 接受连接
 	buffer := make([]byte, 1024)
 	for {
@@ -70,24 +68,29 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 	ip := remoteAddr.IP.String()
 	port := remoteAddr.Port
 
-	peer := ypeer.Peer{
+	peerLogin := store.PeerLogin{
 		IP:       ip,
 		Port:     port,
 		ClientID: clientReq.ClientID,
-		PubKey:   clientReq.Key,
+		WgPubKey: clientReq.WgPubKey,
 		Token:    clientReq.Token,
 	}
 
-	fmt.Printf("Received: %#v type: %d\n", peer, clientReq.Type)
+	log.Infof("Received: %#v\n", peerLogin)
+	var responseData []byte
 	if clientReq.Type == 1 {
 		// 注册客户端
-		store.Register(peer)
+		store.Register(peerLogin)
+		responseData, _ = json.Marshal(&RegisterResponse{
+			Ip:   ip,
+			Port: port,
+		})
+	} else if clientReq.Type == 0 {
+		// 查询客户端
+		peerLogin := store.GetClients(clientReq.ClientID, clientReq.Token)
+		responseData, _ = json.Marshal(&peerLogin)
 	}
-	// 打印消息
-	responseData, _ := json.Marshal(&RegisterResponse{
-		Ip:   ip,
-		Port: port,
-	})
+
 	_, err = conn.WriteToUDP(responseData, remoteAddr)
 	if err != nil {
 		fmt.Println("Error sending data:", err.Error())

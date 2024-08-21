@@ -7,14 +7,12 @@ import (
 	"net"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"yiji.one/punch/client/internal/peer"
 	"yiji.one/punch/iface"
 )
 
@@ -150,29 +148,6 @@ func createEngineConfig(key wgtypes.Key, config *Config) (*EngineConfig, error) 
 	log.Infof("using %d as wireguard port", port)
 	engineConfig.WgPort = port
 	return engineConfig, nil
-}
-
-func (e *Engine) addNewPeers(clientInfo []ClientInfo) error {
-	for _, client := range clientInfo {
-		peerConfig := RemotePeerConfig{
-			WgPubKey:   client.PubKey,
-			AllowedIps: []string{"172.16.0.0/24"},
-		}
-		// remotePeers = append(remotePeers, peerConfig)
-
-		peerConn, err := e.createPeerConn(peerConfig.WgPubKey, strings.Join(peerConfig.AllowedIps, ","))
-		peerConn.OnRemoteAnswer(peer.OfferAnswer{
-			WgListenPort: client.Port,
-			WgAddr:       client.IP,
-		})
-		if err != nil {
-			log.Errorf("error while open peerConn : %s", err)
-			return err
-		}
-		peerConn.Open(e.ctx)
-		e.peerConns[peerConfig.WgPubKey] = peerConn
-	}
-	return nil
 }
 
 func freePort(start int) (int, error) {
