@@ -76,7 +76,7 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 		Token:    clientReq.Token,
 	}
 
-	log.Infof("Received: %#v\n", peerLogin)
+	log.Infof("Received: %#v type: %v\n", peerLogin, clientReq.Type)
 	var responseData []byte
 	if clientReq.Type == 1 {
 		// 注册客户端

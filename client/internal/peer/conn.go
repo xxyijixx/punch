@@ -132,7 +132,7 @@ func (conn *Conn) Open(ctx context.Context) error {
 	defer conn.notifyDisconnected()
 	conn.mu.Unlock()
 
-	log.Infof("connection offer sent to peer %s, waiting for the confirmation", conn.config.Key)
+	// log.Infof("connection offer sent to peer %s, waiting for the confirmation", conn.config.Key)
 	// dynamically set remote WireGuard port if other side specified a different one from the default one
 
 	// the ice connection has been established successfully so we are ready to start the proxy
@@ -199,7 +199,7 @@ func (conn *Conn) punchRemoteWGPort(remoteAddr string, remoteWgPort int) {
 
 	// wait local endpoint configuration
 	time.Sleep(time.Second)
-	log.Infof("punchRemoteWGPort addr: %s port: %d", remoteAddr, remoteWgPort)
+	// log.Infof("punchRemoteWGPort addr: %s port: %d", remoteAddr, remoteWgPort)
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", remoteAddr, remoteWgPort))
 	if err != nil {
 		log.Warnf("got an error while resolving the udp address, err: %s", err)

@@ -16,9 +16,9 @@ type PeerLogin struct {
 }
 
 type PeerConfig struct {
-	IP              string `json:"clientId"`
-	Port            int    `json:"ip"`
-	ClientID        string `json:"port"`
+	IP              string `json:"ip"`
+	Port            int    `json:"port"`
+	ClientID        string `json:"clientId"`
 	WgPubKey        string `json:"wgPubKey"`
 	Token           string `json:"token"`
 	LastKeepAliveAt string `json:"lastKeepAliveAt"`
@@ -34,7 +34,7 @@ func Register(peerLogin PeerLogin) {
 	for _, peer := range peers {
 		if peer.ClientID == peerLogin.ClientID {
 			// 更新peer信息
-			DB.Model(&ypeer.Peer{}).Where("token = ?", peerLogin.Token).Where("client_id = ?", peerLogin.ClientID).Updates(ypeer.Peer{WgPubKey: peer.WgPubKey, IP: peer.IP, Port: peer.Port})
+			DB.Model(&ypeer.Peer{}).Where("token = ?", peerLogin.Token).Where("client_id = ?", peerLogin.ClientID).Updates(ypeer.Peer{WgPubKey: peerLogin.WgPubKey, IP: peerLogin.IP, Port: peerLogin.Port})
 			return
 		}
 	}
@@ -55,7 +55,7 @@ func GetClients(clientId, token string) []PeerConfig {
 
 	peers := []ypeer.Peer{}
 	peerConfig := make([]PeerConfig, 0)
-	DB.Where("token = ?", token).Find(&ypeer.Peer{})
+	DB.Where("token = ?", token).Find(&peers)
 	for _, peer := range peers {
 		if peer.ClientID != clientId {
 			peerConfig = append(peerConfig, PeerConfig{

@@ -169,7 +169,7 @@ func GetRemotePeers(clientId, token string) ([]PeerInfo, error) {
 
 	// 读取响应
 	buffer := make([]byte, 1024)
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second)) // 设置读取超时时间
+	conn.SetReadDeadline(time.Now().Add(10 * time.Second)) // 设置读取超时时间
 	var result []byte
 	for {
 		n, _, err := conn.ReadFromUDP(buffer)

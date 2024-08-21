@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"time"
 
@@ -95,6 +94,7 @@ func NewEngine(
 		config:       config,
 		clientCtx:    clientCtx,
 		peerConns:    make(map[string]*peer.Conn),
+		syncMsgMux:   &sync.Mutex{},
 		clientCancel: clientCancel,
 	}
 }
@@ -200,8 +200,8 @@ func (e *Engine) receiveManagementEvents() {
 			if err != nil {
 				log.Error("failed to get remote peers: ", err)
 			}
-			time.Sleep(5 * time.Second)
 			e.addNewPeers(peerInfo)
+			time.Sleep(30 * time.Second)
 		}
 	}()
 	log.Debugf("connecting to Management Service updates stream")
@@ -209,6 +209,7 @@ func (e *Engine) receiveManagementEvents() {
 
 func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, error) {
 	log.Debugf("creating peer connection %s", pubKey)
+	log.Infof("create peer connection %s allowedIps %s", pubKey, allowedIPs)
 	var stunTurn []*stun.URI
 	stunTurn = append(stunTurn, e.STUNs...)
 	stunTurn = append(stunTurn, e.TURNs...)
@@ -243,15 +244,10 @@ func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, e
 }
 
 func (e *Engine) addNewPeers(clientInfo []PeerInfo) error {
-	fmt.Println("peerConfig", clientInfo)
+	// peerIPs := []string{"172.16.0.0/24"} strings.Join(peerIPs, ",")
+	allowedIps := "172.16.0.0/24"
 	for _, client := range clientInfo {
-		peerConfig := RemotePeerConfig{
-			WgPubKey:   client.WgPubKey,
-			AllowedIps: []string{"172.16.0.0/24"},
-		}
-		// remotePeers = append(remotePeers, peerConfig)
-
-		conn, err := e.createPeerConn(peerConfig.WgPubKey, strings.Join(peerConfig.AllowedIps, ","))
+		conn, err := e.createPeerConn(client.WgPubKey, allowedIps)
 		conn.OnRemoteAnswer(peer.OfferAnswer{
 			WgListenPort: client.Port,
 			WgAddr:       client.IP,
@@ -260,7 +256,7 @@ func (e *Engine) addNewPeers(clientInfo []PeerInfo) error {
 			log.Errorf("error while open peerConn : %s", err)
 			return err
 		}
-		e.peerConns[peerConfig.WgPubKey] = conn
+		e.peerConns[client.WgPubKey] = conn
 
 		e.wgConnWorker.Add(1)
 		go e.connWorker(conn, client.WgPubKey)
