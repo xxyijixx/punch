@@ -15,7 +15,7 @@ func main() {
 	var port int = 51822
 
 	ic := internal.ConfigInput{
-		ConfigPath: "",
+		ConfigPath: "./config.json",
 		// NATExternalIPs NAT外部IP
 		NATExternalIPs: make([]string, 0),
 		// CustomDNSAddress 自定义DNS地址

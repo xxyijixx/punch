@@ -41,6 +41,11 @@ type ConfigInput struct {
 	ExtraIFaceBlackList []string
 }
 
+// SimpleConfig
+type SimpleConfig struct {
+	PrivateKey string
+}
+
 // Config Configuration type
 type Config struct {
 	// Wireguard private key of local peer
@@ -152,12 +157,31 @@ func createNewConfig(input ConfigInput) (*Config, error) {
 	config := &Config{
 		// defaults to false only for new (post 0.26) configurations
 	}
+	if configFileIsExists(input.ConfigPath) {
+		simpleConfig := &SimpleConfig{}
+		if _, err := util.ReadJson(input.ConfigPath, simpleConfig); err != nil {
+			return nil, err
+		}
+		config.PrivateKey = simpleConfig.PrivateKey
 
+		if _, err := config.apply(input); err != nil {
+			return nil, err
+		}
+
+		return config, nil
+	}
+
+	// 如果配置文件不存在，则创建一个新的配置
 	if _, err := config.apply(input); err != nil {
 		return nil, err
 	}
+	scfg := &SimpleConfig{
+		PrivateKey: config.PrivateKey,
+	}
+	// 将新的配置文件写入文件
+	err := util.WriteJson(input.ConfigPath, scfg)
 
-	return config, nil
+	return config, err
 }
 
 func update(input ConfigInput) (*Config, error) {
@@ -182,8 +206,6 @@ func update(input ConfigInput) (*Config, error) {
 }
 
 func (config *Config) apply(input ConfigInput) (updated bool, err error) {
-	// TODO 私钥
-	config.PrivateKey = ""
 	// WACXtBaxOtoObaoxScBst2OA/OjDS4XERXv4SlXqxUQ=
 	if config.PrivateKey == "" {
 		log.Infof("generated new Wireguard key")
