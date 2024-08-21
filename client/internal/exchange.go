@@ -120,7 +120,6 @@ func ClientRegister(port int, wgPubKey string) (PeerLoginRes, error) {
 	}
 	// 将响应反序列化为消息
 	err = json.Unmarshal(result, &response)
-	fmt.Println("DD ", string(result))
 	if err != nil {
 		fmt.Println("Error unmarshaling JSON:", err.Error())
 		return response, err
@@ -132,6 +131,7 @@ func ClientRegister(port int, wgPubKey string) (PeerLoginRes, error) {
 func GetRemotePeers(clientId, token string) ([]PeerInfo, error) {
 	// 指定目标IP和端口
 	netAddr := &net.UDPAddr{}
+	// netAddr := &net.UDPAddr{Port: 51822}
 
 	var response []PeerInfo
 
@@ -170,18 +170,25 @@ func GetRemotePeers(clientId, token string) ([]PeerInfo, error) {
 	// 读取响应
 	buffer := make([]byte, 1024)
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second)) // 设置读取超时时间
-	n, _, err := conn.ReadFromUDP(buffer)
-	if err != nil {
-		fmt.Println("Error reading data:", err.Error())
-		return response, err
-	}
+	var result []byte
+	for {
+		n, _, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			return response, fmt.Errorf("Error reading data:", err.Error())
+		}
 
+		result = append(result, buffer[:n]...)
+
+		// 检查是否读取完所有数据
+		if n < len(buffer) {
+			break
+		}
+	}
 	// 将响应反序列化为消息
-	err = json.Unmarshal(buffer[:n], &response)
+	err = json.Unmarshal(result, &response)
 	if err != nil {
 		fmt.Println("Error unmarshaling JSON:", err.Error())
 		return response, err
 	}
-
 	return response, nil
 }

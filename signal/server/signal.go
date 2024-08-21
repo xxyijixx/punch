@@ -87,8 +87,8 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 		})
 	} else if clientReq.Type == 0 {
 		// 查询客户端
-		peerLogin := store.GetClients(clientReq.ClientID, clientReq.Token)
-		responseData, _ = json.Marshal(&peerLogin)
+		peerConfig := store.GetClients(clientReq.ClientID, clientReq.Token)
+		responseData, _ = json.Marshal(peerConfig)
 	}
 	_, err = conn.WriteToUDP(responseData, remoteAddr)
 	if err != nil {

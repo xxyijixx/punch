@@ -195,12 +195,14 @@ func (e *Engine) IsWGIfaceUp() bool {
 
 func (e *Engine) receiveManagementEvents() {
 	go func() {
-		peerInfo, err := GetRemotePeers(clientId, token)
-		if err != nil {
-			log.Error("failed to get remote peers: ", err)
+		for {
+			peerInfo, err := GetRemotePeers(clientId, token)
+			if err != nil {
+				log.Error("failed to get remote peers: ", err)
+			}
+			time.Sleep(5 * time.Second)
+			e.addNewPeers(peerInfo)
 		}
-		time.Sleep(60 * time.Second)
-		e.addNewPeers(peerInfo)
 	}()
 	log.Debugf("connecting to Management Service updates stream")
 }
@@ -241,6 +243,7 @@ func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, e
 }
 
 func (e *Engine) addNewPeers(clientInfo []PeerInfo) error {
+	fmt.Println("peerConfig", clientInfo)
 	for _, client := range clientInfo {
 		peerConfig := RemotePeerConfig{
 			WgPubKey:   client.WgPubKey,

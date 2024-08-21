@@ -15,6 +15,15 @@ type PeerLogin struct {
 	Token    string
 }
 
+type PeerConfig struct {
+	IP              string `json:"clientId"`
+	Port            int    `json:"ip"`
+	ClientID        string `json:"port"`
+	WgPubKey        string `json:"wgPubKey"`
+	Token           string `json:"token"`
+	LastKeepAliveAt string `json:"lastKeepAliveAt"`
+}
+
 var mu = sync.RWMutex{}
 
 func Register(peerLogin PeerLogin) {
@@ -40,17 +49,23 @@ func Register(peerLogin PeerLogin) {
 	DB.Create(&peer)
 }
 
-func GetClients(clientId, token string) []ypeer.Peer {
+func GetClients(clientId, token string) []PeerConfig {
 	mu.RLock()
 	defer mu.RUnlock()
 
 	peers := []ypeer.Peer{}
+	peerConfig := make([]PeerConfig, 0)
 	DB.Where("token = ?", token).Find(&ypeer.Peer{})
-	for i, peer := range peers {
-		if peer.ClientID == clientId {
-			peers = append(peers[:i], peers...)
-			return peers
+	for _, peer := range peers {
+		if peer.ClientID != clientId {
+			peerConfig = append(peerConfig, PeerConfig{
+				IP:       peer.IP,
+				Port:     peer.Port,
+				ClientID: peer.ClientID,
+				WgPubKey: peer.WgPubKey,
+				Token:    peer.Token,
+			})
 		}
 	}
-	return peers
+	return peerConfig
 }
