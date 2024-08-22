@@ -143,8 +143,9 @@ func (conn *Conn) Open(ctx context.Context) error {
 		log.Info("configre error", err)
 		return err
 	}
+	_ = endpoint
 
-	log.Infof("connected to peer [%s], endpoint address: %s", conn.config.Key, endpoint.String())
+	// log.Infof("connected to peer [%s], endpoint address: %s", conn.config.Key, endpoint.String())
 
 	// return nil
 	// wait until connection disconnected or has been closed externally (upper layer, e.g. engine)

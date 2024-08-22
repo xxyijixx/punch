@@ -11,10 +11,11 @@ import (
 )
 
 type RegisterReq struct {
-	ClientID string
-	WgPubKey string
-	Type     int
-	Token    string
+	ClientID  string `json:"clientId"`
+	WgPubKey  string `json:"wgPubKey"`
+	Type      int    `json:"type"`
+	Token     string `json:"token"`
+	AllowedIP string `json:"allowedIp"`
 }
 
 type RegisterResponse struct {
@@ -69,13 +70,13 @@ func handleConnection(conn *net.UDPConn, buffer []byte, remoteAddr *net.UDPAddr)
 	port := remoteAddr.Port
 
 	peerLogin := store.PeerLogin{
-		IP:       ip,
-		Port:     port,
-		ClientID: clientReq.ClientID,
-		WgPubKey: clientReq.WgPubKey,
-		Token:    clientReq.Token,
+		IP:        ip,
+		Port:      port,
+		ClientID:  clientReq.ClientID,
+		WgPubKey:  clientReq.WgPubKey,
+		Token:     clientReq.Token,
+		AllowedIP: clientReq.AllowedIP,
 	}
-
 	log.Infof("Received: %#v type: %v\n", peerLogin, clientReq.Type)
 	var responseData []byte
 	if clientReq.Type == 1 {

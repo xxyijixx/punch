@@ -19,7 +19,6 @@ require (
 
 require (
 	github.com/cilium/ebpf v0.15.0
-	github.com/golang/mock v1.6.0
 	github.com/google/gopacket v1.1.19
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/libp2p/go-netroute v0.2.1
@@ -32,6 +31,8 @@ require (
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 	golang.org/x/net v0.26.0
 	golang.org/x/sync v0.7.0
+	gorm.io/driver/sqlite v1.5.6
+	gorm.io/gorm v1.25.11
 )
 
 require (
@@ -58,8 +59,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/sqlite v1.5.6 // indirect
-	gorm.io/gorm v1.25.11 // indirect
 	gvisor.dev/gvisor v0.0.0-20230927004350-cbd86285d259 // indirect
 )
 

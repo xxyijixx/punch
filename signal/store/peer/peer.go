@@ -9,5 +9,6 @@ type Peer struct {
 	Port            int       `json:"port"`
 	WgPubKey        string    `json:"wgPubKey"`
 	Token           string    `json:"token"`
+	AllowedIP       string    `json:"allowedIp"`
 	LastKeepAliveAt time.Time `json:"lastKeepAliveAt"`
 }

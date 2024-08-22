@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -15,15 +16,17 @@ type PeerInfo struct {
 	Port            int    `json:"port"`
 	WgPubKey        string `json:"wgPubKey"`
 	Token           string `json:"token"`
+	AllowedIP       string `json:"allowedIp"`
 	LastKeepAliveAt string `json:"lastKeepAliveAt"`
 }
 
 type PeerLoginReq struct {
-	ClientID string `json:"clientId"`
-	TargetID string `json:"targetId"`
-	WgPubKey string `json:"wgPubKey"`
-	Type     int    `json:"type"`
-	Token    string `json:"token"`
+	ClientID  string `json:"clientId"`
+	TargetID  string `json:"targetId"`
+	WgPubKey  string `json:"wgPubKey"`
+	Type      int    `json:"type"`
+	Token     string `json:"token"`
+	AllowedIP string `json:"allowedIp"`
 }
 
 type PeerLoginRes struct {
@@ -61,8 +64,7 @@ func GetSignalServer() (string, int) {
 	return signalHost, sPort
 }
 
-func ClientRegister(port int, wgPubKey string) (PeerLoginRes, error) {
-
+func ClientRegister(port int, wgPubKey, localIP string) (PeerLoginRes, error) {
 	netAddr := &net.UDPAddr{Port: port}
 	// 使用随机端口
 	// netAddr := &net.UDPAddr{}
@@ -79,14 +81,19 @@ func ClientRegister(port int, wgPubKey string) (PeerLoginRes, error) {
 		return response, fmt.Errorf("error connecting: %v", err)
 	}
 	defer conn.Close()
-
+	// IP
+	ipcd := strings.Split(localIP, "/")
+	if len(ipcd) != 2 {
+		return response, fmt.Errorf("error ipcd")
+	}
 	// 创建一个消息
 	clientReq := PeerLoginReq{
-		ClientID: clientId,
-		TargetID: targetId,
-		WgPubKey: wgPubKey,
-		Type:     1,
-		Token:    token,
+		ClientID:  clientId,
+		TargetID:  targetId,
+		WgPubKey:  wgPubKey,
+		Type:      1,
+		Token:     token,
+		AllowedIP: ipcd[0],
 	}
 
 	// 将消息序列化为JSON

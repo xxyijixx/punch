@@ -93,7 +93,7 @@ func (c *ConnectClient) run() error {
 			return err
 		}
 		// 注册客户端
-		loginResponse, err := ClientRegister(engineConfig.WgPort, pubKey)
+		loginResponse, err := ClientRegister(engineConfig.WgPort, pubKey, engineConfig.WgAddr)
 		if err != nil {
 			return err
 		}

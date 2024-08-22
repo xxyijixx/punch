@@ -8,11 +8,12 @@ import (
 )
 
 type PeerLogin struct {
-	IP       string
-	Port     int
-	ClientID string
-	WgPubKey string
-	Token    string
+	IP        string `json:"ip"`
+	Port      int    `json:"port"`
+	ClientID  string `json:"clientId"`
+	WgPubKey  string `json:"wgPubKey"`
+	Token     string `json:"token"`
+	AllowedIP string `json:"allowedIp"`
 }
 
 type PeerConfig struct {
@@ -21,6 +22,7 @@ type PeerConfig struct {
 	ClientID        string `json:"clientId"`
 	WgPubKey        string `json:"wgPubKey"`
 	Token           string `json:"token"`
+	AllowedIP       string `json:"allowedIp"`
 	LastKeepAliveAt string `json:"lastKeepAliveAt"`
 }
 
@@ -44,6 +46,7 @@ func Register(peerLogin PeerLogin) {
 		ClientID:        peerLogin.ClientID,
 		WgPubKey:        peerLogin.WgPubKey,
 		Token:           peerLogin.Token,
+		AllowedIP:       peerLogin.AllowedIP,
 		LastKeepAliveAt: time.Now(),
 	}
 	DB.Create(&peer)
@@ -59,11 +62,12 @@ func GetClients(clientId, token string) []PeerConfig {
 	for _, peer := range peers {
 		if peer.ClientID != clientId {
 			peerConfig = append(peerConfig, PeerConfig{
-				IP:       peer.IP,
-				Port:     peer.Port,
-				ClientID: peer.ClientID,
-				WgPubKey: peer.WgPubKey,
-				Token:    peer.Token,
+				IP:        peer.IP,
+				Port:      peer.Port,
+				ClientID:  peer.ClientID,
+				WgPubKey:  peer.WgPubKey,
+				Token:     peer.Token,
+				AllowedIP: peer.AllowedIP,
 			})
 		}
 	}

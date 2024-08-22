@@ -245,9 +245,10 @@ func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, e
 
 func (e *Engine) addNewPeers(clientInfo []PeerInfo) error {
 	// peerIPs := []string{"172.16.0.0/24"} strings.Join(peerIPs, ",")
-	allowedIps := "172.16.0.0/24"
+	// allowedIps := "172.16.0.0/24"
 	for _, client := range clientInfo {
-		conn, err := e.createPeerConn(client.WgPubKey, allowedIps)
+		log.Infof("client.AllowedIP %s, client %#v", client.AllowedIP, client)
+		conn, err := e.createPeerConn(client.WgPubKey, client.AllowedIP+"/32")
 		conn.OnRemoteAnswer(peer.OfferAnswer{
 			WgListenPort: client.Port,
 			WgAddr:       client.IP,
