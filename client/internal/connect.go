@@ -95,6 +95,7 @@ func (c *ConnectClient) run() error {
 		// 注册客户端
 		loginResponse, err := ClientRegister(engineConfig.WgPort, pubKey, engineConfig.WgAddr)
 		if err != nil {
+			log.Info("注册失败", err)
 			return err
 		}
 		log.Info("登录", loginResponse)

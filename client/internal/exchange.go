@@ -6,27 +6,43 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
+
+type MessageType int
+
+type Message struct {
+	Type  MessageType `json:"type"`
+	Token string      `json:"token"`
+	// Header interface{} `json:"header"`
+	Body interface{} `json:"body"`
+}
+
+const (
+	Login     MessageType = 1
+	KeepAlive MessageType = 2
+	Query     MessageType = 3
+)
+
+type PeerLoginReq struct {
+	ClientID  string `json:"clientId"`
+	WgPubKey  string `json:"wgPubKey"`
+	AllowedIP string `json:"allowedIp"`
+}
+
+type PeerQueryReq struct {
+	ClientID string `json:"clientId"`
+}
 
 type PeerInfo struct {
 	ClientId        string `json:"clientId"`
 	IP              string `json:"ip"`
 	Port            int    `json:"port"`
 	WgPubKey        string `json:"wgPubKey"`
-	Token           string `json:"token"`
 	AllowedIP       string `json:"allowedIp"`
 	LastKeepAliveAt string `json:"lastKeepAliveAt"`
-}
-
-type PeerLoginReq struct {
-	ClientID  string `json:"clientId"`
-	TargetID  string `json:"targetId"`
-	WgPubKey  string `json:"wgPubKey"`
-	Type      int    `json:"type"`
-	Token     string `json:"token"`
-	AllowedIP string `json:"allowedIp"`
 }
 
 type PeerLoginRes struct {
@@ -34,13 +50,8 @@ type PeerLoginRes struct {
 	Port int    `json:"port"`
 }
 
-const (
-	DEFAULT_PORT = 51833
-)
-
 var (
 	clientId        string
-	targetId        string
 	signalIpAddress string
 	token           string
 )
@@ -65,6 +76,7 @@ func GetSignalServer() (string, int) {
 }
 
 func ClientRegister(port int, wgPubKey, localIP string) (PeerLoginRes, error) {
+	log.Info("register ing...")
 	netAddr := &net.UDPAddr{Port: port}
 	// 使用随机端口
 	// netAddr := &net.UDPAddr{}
@@ -81,23 +93,26 @@ func ClientRegister(port int, wgPubKey, localIP string) (PeerLoginRes, error) {
 		return response, fmt.Errorf("error connecting: %v", err)
 	}
 	defer conn.Close()
-	// IP
-	ipcd := strings.Split(localIP, "/")
-	if len(ipcd) != 2 {
-		return response, fmt.Errorf("error ipcd")
-	}
-	// 创建一个消息
-	clientReq := PeerLoginReq{
-		ClientID:  clientId,
-		TargetID:  targetId,
-		WgPubKey:  wgPubKey,
-		Type:      1,
-		Token:     token,
-		AllowedIP: ipcd[0],
+
+	ip, _, err := net.ParseCIDR(localIP)
+	if err != nil {
+		return response, err
 	}
 
+	// 创建一个消息
+	message := Message{
+		Type:  Login,
+		Token: token,
+		Body: PeerLoginReq{
+			ClientID:  clientId,
+			WgPubKey:  wgPubKey,
+			AllowedIP: ip.String(),
+		},
+	}
+	log.Infof("send message: %v\n", message)
+
 	// 将消息序列化为JSON
-	jsonData, err := json.Marshal(clientReq)
+	jsonData, err := json.Marshal(message)
 	if err != nil {
 		return response, fmt.Errorf("error marshaling JSON: %v", err)
 	}
@@ -115,7 +130,7 @@ func ClientRegister(port int, wgPubKey, localIP string) (PeerLoginRes, error) {
 	for {
 		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			return response, fmt.Errorf("Error reading data:", err.Error())
+			return response, fmt.Errorf("error reading data: %v", err)
 		}
 
 		result = append(result, buffer[:n]...)
@@ -155,15 +170,16 @@ func GetRemotePeers(clientId, token string) ([]PeerInfo, error) {
 	defer conn.Close()
 
 	// 创建一个消息
-	clientReq := PeerLoginReq{
-		ClientID: clientId,
-		WgPubKey: "",
-		Type:     0,
-		Token:    token,
+	message := Message{
+		Type:  Query,
+		Token: token,
+		Body: PeerQueryReq{
+			ClientID: clientId,
+		},
 	}
 
 	// 将消息序列化为JSON
-	jsonData, err := json.Marshal(clientReq)
+	jsonData, err := json.Marshal(message)
 	if err != nil {
 		return response, fmt.Errorf("error marshaling JSON: %v", err)
 	}
@@ -181,7 +197,7 @@ func GetRemotePeers(clientId, token string) ([]PeerInfo, error) {
 	for {
 		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			return response, fmt.Errorf("Error reading data:", err.Error())
+			return response, fmt.Errorf("error reading data: %v", err)
 		}
 
 		result = append(result, buffer[:n]...)
@@ -194,8 +210,7 @@ func GetRemotePeers(clientId, token string) ([]PeerInfo, error) {
 	// 将响应反序列化为消息
 	err = json.Unmarshal(result, &response)
 	if err != nil {
-		fmt.Println("Error unmarshaling JSON:", err.Error())
-		return response, err
+		return response, fmt.Errorf("error unmarshaling JSON: %v", err)
 	}
 	return response, nil
 }

@@ -199,15 +199,13 @@ func update(input ConfigInput) (*Config, error) {
 }
 
 func (config *Config) apply(input ConfigInput) (updated bool, err error) {
-	// WACXtBaxOtoObaoxScBst2OA/OjDS4XERXv4SlXqxUQ=
+
 	if config.PrivateKey == "" {
 		log.Infof("generated new Wireguard key")
 		config.PrivateKey = generateKey()
 		updated = true
 	}
-	pubKey, _ := wgtypes.ParseKey(config.PrivateKey)
 
-	log.Infof("PrivateKey: [%s], PublicKey: [%s]", config.PrivateKey, pubKey.PublicKey().String())
 	if input.WireguardPort != nil && *input.WireguardPort != config.WgPort {
 		log.Infof("updating Wireguard port %d (old value %d)",
 			*input.WireguardPort, config.WgPort)
