@@ -201,7 +201,7 @@ func (e *Engine) receiveManagementEvents() {
 				log.Error("failed to get remote peers: ", err)
 			}
 			e.addNewPeers(peerInfo)
-			time.Sleep(30 * time.Second)
+			time.Sleep(15 * time.Second)
 		}
 	}()
 	log.Debugf("connecting to Management Service updates stream")
@@ -209,7 +209,7 @@ func (e *Engine) receiveManagementEvents() {
 
 func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, error) {
 	log.Debugf("creating peer connection %s", pubKey)
-	log.Infof("create peer connection %s allowedIps %s", pubKey, allowedIPs)
+	// log.Infof("create peer connection %s allowedIps %s", pubKey, allowedIPs)
 	var stunTurn []*stun.URI
 	stunTurn = append(stunTurn, e.STUNs...)
 	stunTurn = append(stunTurn, e.TURNs...)

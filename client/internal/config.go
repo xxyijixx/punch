@@ -41,11 +41,6 @@ type ConfigInput struct {
 	ExtraIFaceBlackList []string
 }
 
-// SimpleConfig
-type SimpleConfig struct {
-	PrivateKey string
-}
-
 // Config Configuration type
 type Config struct {
 	// Wireguard private key of local peer
@@ -158,11 +153,9 @@ func createNewConfig(input ConfigInput) (*Config, error) {
 		// defaults to false only for new (post 0.26) configurations
 	}
 	if configFileIsExists(input.ConfigPath) {
-		simpleConfig := &SimpleConfig{}
-		if _, err := util.ReadJson(input.ConfigPath, simpleConfig); err != nil {
+		if _, err := util.ReadJson(input.ConfigPath, config); err != nil {
 			return nil, err
 		}
-		config.PrivateKey = simpleConfig.PrivateKey
 
 		if _, err := config.apply(input); err != nil {
 			return nil, err
@@ -175,11 +168,11 @@ func createNewConfig(input ConfigInput) (*Config, error) {
 	if _, err := config.apply(input); err != nil {
 		return nil, err
 	}
-	scfg := &SimpleConfig{
-		PrivateKey: config.PrivateKey,
-	}
+	// scfg := &SimpleConfig{
+	// 	PrivateKey: config.PrivateKey,
+	// }
 	// 将新的配置文件写入文件
-	err := util.WriteJson(input.ConfigPath, scfg)
+	err := util.WriteJson(input.ConfigPath, config)
 
 	return config, err
 }

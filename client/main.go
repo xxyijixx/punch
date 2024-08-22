@@ -10,8 +10,7 @@ import (
 
 func main() {
 	flag.Parse()
-	ctx := context.WithValue(context.TODO(), "k1", "v1")
-	var ifaceName string
+	ctx := context.TODO()
 	var port int = 51822
 
 	ic := internal.ConfigInput{
@@ -21,7 +20,7 @@ func main() {
 		// CustomDNSAddress 自定义DNS地址
 		CustomDNSAddress: make([]byte, 0),
 		// InterfaceName 接口名称
-		InterfaceName: &ifaceName,
+		InterfaceName: nil,
 		// WireguardPort Wireguard端口
 		WireguardPort: &port,
 		// ExtraIFaceBlackList 额外接口黑名单
