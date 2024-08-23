@@ -111,7 +111,6 @@ func (e *Engine) Start() error {
 	e.wgInterface = wgIface
 
 	userspace := e.wgInterface.IsUserspaceBind()
-	log.Info("userspace bind: ", userspace)
 	e.wgProxyFactory = wgproxy.NewFactory(e.ctx, userspace, e.config.WgPort)
 
 	err = e.wgInterfaceCreate()
@@ -243,10 +242,7 @@ func (e *Engine) createPeerConn(pubKey string, allowedIPs string) (*peer.Conn, e
 }
 
 func (e *Engine) addNewPeers(clientInfo []PeerInfo) error {
-	// peerIPs := []string{"172.16.0.0/24"} strings.Join(peerIPs, ",")
-	// allowedIps := "172.16.0.0/24"
 	for _, client := range clientInfo {
-		log.Infof("client.AllowedIP %s, client %#v", client.AllowedIP, client)
 		conn, err := e.createPeerConn(client.WgPubKey, client.AllowedIP+"/32")
 		conn.OnRemoteAnswer(peer.OfferAnswer{
 			WgListenPort: client.Port,

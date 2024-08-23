@@ -166,7 +166,7 @@ func (conn *Conn) configureConnection(remoteAddr string, remoteWgPort int) (net.
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
-	conn.wgProxy = conn.wgProxyFactory.GetProxy(conn.ctx)
+	// conn.wgProxy = conn.wgProxyFactory.GetProxy(conn.ctx)
 	go conn.punchRemoteWGPort(remoteAddr, remoteWgPort)
 	var endpoint = &net.UDPAddr{
 		IP:   net.ParseIP(remoteAddr),

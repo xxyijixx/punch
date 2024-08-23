@@ -25,7 +25,6 @@ func newWGConfigurer(deviceName string) wgConfigurer {
 
 func (c *wgKernelConfigurer) configureInterface(privateKey string, port int) error {
 	log.Debugf("adding Wireguard private key")
-	log.Info("wgKernelConfigurer configureInterface")
 	key, err := wgtypes.ParseKey(privateKey)
 	if err != nil {
 		return err

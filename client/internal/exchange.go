@@ -76,7 +76,6 @@ func GetSignalServer() (string, int) {
 }
 
 func ClientRegister(port int, wgPubKey, localIP string) (PeerLoginRes, error) {
-	log.Info("register ing...")
 	netAddr := &net.UDPAddr{Port: port}
 	// 使用随机端口
 	// netAddr := &net.UDPAddr{}

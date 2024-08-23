@@ -9,9 +9,16 @@ import (
 )
 
 func main() {
+	lvl := flag.String("log-level", "info", "log level")
 	flag.Parse()
 	ctx := context.TODO()
 	var port int = 51822
+	level, err := log.ParseLevel(*lvl)
+	if err != nil {
+		log.SetLevel(log.InfoLevel)
+	} else {
+		log.SetLevel(level)
+	}
 
 	ic := internal.ConfigInput{
 		ConfigPath: "./config.json",
