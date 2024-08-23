@@ -36,7 +36,7 @@
 
 2. 启动客户端
 
-> 代码中 AllowIps 为`172.16.0.0/24`，wireguard 地址需要在这个网段之中，或者自行修改
+> 注意：目前Wireguard仍然是由用户自行填写
 
 ```bash
 cd client
@@ -48,4 +48,4 @@ go build -o client
 
 ## 运行效果
 
-![](https://vip.helloimg.com/i/2024/08/19/66c2c1b5ee82c.png)
+![](https://vip.helloimg.com/i/2024/08/23/66c85cbd3f8f4.png)
